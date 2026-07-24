@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Suivi budget</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FAFAF9; --surface:#FFF; --ink:#18181B; --muted:#71717A; --faint:#A1A1AA;
+    --line:#E4E4E7; --soft:#F4F4F5; --accent:#0F766E; --accent-soft:#F0FDF9;
+    --danger:#B91C1C; --danger-soft:#FEF2F2;
+    --font:"Inter Tight",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --shadow:0 1px 2px rgba(24,24,27,.04), 0 4px 16px rgba(24,24,27,.05);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;
+    line-height:1.55;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+  .wrap{max-width:1180px;margin:0 auto;padding:44px 24px 96px}
+  .num{font-variant-numeric:tabular-nums}
+
+  header.top{margin-bottom:36px}
+  .eyebrow{font-size:13px;color:var(--faint);letter-spacing:.02em;margin-bottom:8px}
+  h1{font-size:34px;font-weight:600;letter-spacing:-.025em;line-height:1.15}
+  h1 em{font-style:normal;color:var(--accent)}
+  .lede{color:var(--muted);font-size:15px;margin-top:8px;max-width:62ch}
+
+  .card{background:var(--surface);border-radius:12px;box-shadow:var(--shadow);
+    padding:32px;margin-bottom:24px}
+  .card > h2{font-size:20px;font-weight:600;letter-spacing:-.015em;margin-bottom:4px}
+  .card > .desc{color:var(--muted);font-size:14px;margin-bottom:24px;max-width:66ch}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+  .kpi{background:var(--surface);border-radius:12px;box-shadow:var(--shadow);padding:24px}
+  .kpi .lab{font-size:13px;color:var(--muted);margin-bottom:10px}
+  .kpi .val{font-size:40px;font-weight:600;letter-spacing:-.035em;line-height:1}
+  .kpi .val.sm{font-size:26px;letter-spacing:-.02em}
+  .kpi .sub{font-size:13px;color:var(--faint);margin-top:8px}
+  .kpi.good .val{color:var(--accent)}
+  .kpi.bad .val{color:var(--danger)}
+
+  /* escalier */
+  .stair{position:relative}
+  .goal{position:absolute;top:0;bottom:0;width:2px;background:var(--ink);z-index:3;
+    border-radius:1px;pointer-events:none}
+  .goal span{position:absolute;top:-24px;left:50%;transform:translateX(-50%);
+    font-size:12px;font-weight:600;white-space:nowrap;background:var(--surface);padding:0 6px}
+  .step{display:grid;grid-template-columns:minmax(130px,200px) 1fr minmax(92px,auto);
+    align-items:center;gap:16px;padding:4px 0}
+  .step .nm{font-size:13.5px;color:var(--muted);text-align:right;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+  .step.key .nm{color:var(--ink);font-weight:500}
+  .track{position:relative;height:22px;background:var(--soft);border-radius:6px;overflow:hidden}
+  .bar{position:absolute;left:0;top:0;bottom:0;background:#A7B3AC;border-radius:6px;
+    transition:width .55s cubic-bezier(.22,.7,.28,1)}
+  .step.key .bar{background:#5EA39B}
+  .step.done .bar{background:var(--accent)}
+  .step .amt{font-size:13.5px;color:var(--muted);text-align:right}
+  .step.done .amt{color:var(--accent);font-weight:600}
+  .step.cross .nm{color:var(--accent);font-weight:600}
+
+  /* tables */
+  .scroll{overflow-x:auto;margin:0 -8px;padding:0 8px}
+  table{border-collapse:collapse;width:100%}
+  #tm{min-width:940px}
+  th{font-size:12.5px;font-weight:500;color:var(--muted);text-align:right;padding:0 12px 12px;
+    border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:bottom}
+  th:first-child,td:first-child{text-align:left;padding-left:4px}
+  td{padding:9px 12px;text-align:right;font-size:14px;border:0}
+  tbody tr{height:48px}
+  tbody tr:hover{background:var(--soft)}
+  tbody tr.paid{background:var(--accent-soft)}
+  tbody tr.paid:hover{background:#E4F7F2}
+  tbody tr.tight td.rav{color:var(--danger);font-weight:600}
+  td.dim{color:var(--faint)}
+  tfoot td{padding-top:16px;font-weight:600;border-top:1px solid var(--line)}
+
+  input,select{font-family:var(--font);font-size:14px;color:var(--ink);background:var(--surface);
+    border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-variant-numeric:tabular-nums}
+  input[type=number]{width:100px;text-align:right}
+  input.txt{text-align:left;width:100%;min-width:170px}
+  input:focus,select:focus{outline:none;border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(15,118,110,.12)}
+  input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);padding:0;
+    border-radius:4px;cursor:pointer}
+  label.f{display:block}
+  label.f .lb{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+  label.f input{width:100%}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:18px}
+
+  button{font-family:var(--font);font-size:14px;font-weight:500;padding:9px 16px;
+    border:1px solid var(--line);background:var(--surface);color:var(--ink);
+    border-radius:8px;cursor:pointer}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.primary:hover{background:#0d655e;color:#fff}
+  button.link{border:0;background:none;color:var(--muted);padding:6px 8px}
+  button.link:hover{color:var(--danger)}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:20px}
+
+  .flag{border-radius:8px;padding:14px 16px;font-size:14px;margin-bottom:20px}
+  .flag.warn{background:var(--danger-soft);color:var(--danger)}
+  .flag.ok{background:var(--accent-soft);color:var(--accent)}
+  .empty{color:var(--faint);font-size:14px;padding:20px 4px}
+  .hide{display:none}
+
+  footer{margin-top:8px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
+    font-size:13px;color:var(--faint);padding:0 4px}
+
+  @media (max-width:880px){
+    .wrap{padding:32px 16px 72px}
+    .kpis{grid-template-columns:1fr 1fr;gap:12px}
+    .card{padding:22px}
+    .kpi .val{font-size:32px}
+    .step{grid-template-columns:minmax(96px,120px) 1fr minmax(78px,auto);gap:10px}
+    .step .nm{font-size:12px}
+  }
+  @media (prefers-reduced-motion:reduce){ .bar{transition:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <p class="eyebrow" id="eyebrow">Suivi d'épargne et de budget</p>
+    <h1>Objectif <em id="h-obj">—</em></h1>
+    <p class="lede" id="h-lede">Renseigne tes paramètres pour démarrer. Tout reste dans ton
+      navigateur : rien n'est envoyé nulle part.</p>
+  </header>
+
+  <div id="flag-coherence" class="flag warn hide"></div>
+
+  <div class="kpis">
+    <div class="kpi" id="k1"><div class="lab">Épargne constituée</div>
+      <div class="val" id="v1">—</div><div class="sub" id="s1">—</div></div>
+    <div class="kpi" id="k2"><div class="lab">Reste à épargner</div>
+      <div class="val" id="v2">—</div><div class="sub" id="s2">—</div></div>
+    <div class="kpi" id="k3"><div class="lab">Objectif atteint</div>
+      <div class="val sm" id="v3">—</div><div class="sub" id="s3">—</div></div>
+    <div class="kpi" id="k4"><div class="lab">Mois en tension</div>
+      <div class="val" id="v4">—</div><div class="sub" id="s4">—</div></div>
+  </div>
+
+  <section class="card" id="c-stair">
+    <h2>L'escalier vers l'objectif</h2>
+    <p class="desc">Chaque contribution s'empile sur la précédente. Le trait vertical marque
+      l'objectif ; les marches qui le franchissent passent au vert.</p>
+    <div class="stair" id="stair"></div>
+  </section>
+
+  <section class="card">
+    <h2>Suivi mois par mois</h2>
+    <p class="desc">Saisis ce que tu encaisses et ce que tu mets de côté. Le reste à vivre est
+      ce qui demeure une fois le crédit, les charges fixes, les dépenses ponctuelles et
+      l'épargne retirés. Coche un mois quand il est bouclé.</p>
+    <div class="scroll"><table id="tm">
+      <thead><tr>
+        <th>Mois</th><th>Revenus</th><th>Crédit</th><th>Charges fixes</th><th>Ponctuel</th>
+        <th>Épargne</th><th>Reste à vivre</th><th>Épargne cumulée</th><th>Bouclé</th>
+      </tr></thead>
+      <tbody id="tm-body"></tbody>
+      <tfoot><tr>
+        <td>Totaux</td><td id="f-rev">—</td><td id="f-cred">—</td><td id="f-fix">—</td>
+        <td id="f-one">—</td><td id="f-ep">—</td><td id="f-rav">—</td><td></td><td></td>
+      </tr></tfoot>
+    </table></div>
+    <div class="row">
+      <label style="font-size:14px;color:var(--muted)">Épargne pour tous les mois
+        <input type="number" id="bulk" step="10" placeholder="0" style="margin-left:8px"></label>
+      <button id="apply-bulk">Appliquer</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Charges fixes</h2>
+    <p class="desc">La périodicité place automatiquement la dépense sur les bons mois — utile
+      pour des charges trimestrielles ou une taxe annuelle.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Libellé</th><th>Montant</th><th>Périodicité</th><th>Mois</th>
+        <th>Coût annuel</th><th></th></tr></thead>
+      <tbody id="fx-body"></tbody>
+      <tfoot><tr><td>Total annuel</td><td></td><td></td><td></td><td id="fx-tot">—</td><td></td></tr></tfoot>
+    </table></div>
+    <div class="row"><button id="add-fx">Ajouter une charge</button>
+      <span style="font-size:13px;color:var(--faint)" id="fx-moy"></span></div>
+  </section>
+
+  <section class="card">
+    <h2>Dépenses ponctuelles</h2>
+    <p class="desc">Tout ce qui ne revient pas chaque mois : travaux, mobilier, frais bancaires,
+      imprévus.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Mois</th><th>Libellé</th><th>Montant</th><th></th></tr></thead>
+      <tbody id="op-body"></tbody>
+      <tfoot><tr><td>Total</td><td></td><td id="op-tot">—</td><td></td></tr></tfoot>
+    </table></div>
+    <div class="row"><button id="add-op">Ajouter une dépense</button></div>
+  </section>
+
+  <section class="card" id="c-params">
+    <h2>Mes paramètres</h2>
+    <p class="desc">Ces montants ne sont enregistrés que dans ce navigateur. Ils ne partent
+      sur aucun serveur et ne figurent pas dans le code de la page.</p>
+    <div class="grid" id="params"></div>
+    <div class="row">
+      <button class="primary" id="save-params">Enregistrer</button>
+      <button class="link" id="reset">Tout effacer</button>
+    </div>
+  </section>
+
+  <footer>
+    <span id="status">Chargement…</span>
+    <span>Données locales à ce navigateur — pense à noter tes chiffres ailleurs.</span>
+  </footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+const KEY="suivi-budget-v1";
+
+const FIELDS=[
+  ["objectif",     "Objectif d'épargne",              50000],
+  ["departTotal",  "Épargne constituée avant l'achat", 0],
+  ["departVersee", "…dont versée à l'achat",           0],
+  ["dejaEpargne",  "Épargne ajoutée depuis",           0],
+  ["donExclu",     "Apport extérieur (exclu)",         0],
+  ["soldeCompte",  "Solde du compte d'épargne",        0],
+  ["revenus",      "Revenus nets mensuels",            0],
+  ["credit",       "Échéance de crédit mensuelle",     0],
+  ["epargneDef",   "Épargne mensuelle par défaut",     0],
+  ["duree",        "Nombre de mois suivis",            12]
+];
+
+const MOISNOM=["","Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août",
+  "Septembre","Octobre","Novembre","Décembre"];
+const FREQ={M:"Mensuelle",T:"Trimestrielle",A:"Annuelle"};
+
+let S={params:{},start:"",months:{},fixed:[],oneoff:[]};
+let storeMode="none";
+
+const eur=new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0});
+const eur2=new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",
+  minimumFractionDigits:2,maximumFractionDigits:2});
+const f0=n=>eur.format(Math.round(n||0));
+const f2=n=>eur2.format(n||0);
+const $=i=>document.getElementById(i);
+const uid=()=>"i"+Math.random().toString(36).slice(2,9);
+const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
+  .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const P=k=>Number(S.params[k])||0;
+
+function defaultStart(){
+  const d=new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+}
+function monthList(){
+  const [y,m]=(S.start||defaultStart()).split("-").map(Number);
+  const n=Math.min(60,Math.max(1,P("duree")||12));
+  const out=[];
+  for(let i=0;i<n;i++){
+    const mm=((m-1+i)%12)+1, yy=y+Math.floor((m-1+i)/12);
+    out.push({key:yy+"-"+String(mm).padStart(2,"0"),
+              label:MOISNOM[mm]+" "+yy, num:mm, idx:i});
+  }
+  return out;
+}
+function mo(k){ if(!S.months[k]) S.months[k]={}; return S.months[k]; }
+function get(k,f,def){ const s=S.months[k]; return (s&&typeof s[f]==="number")?s[f]:def; }
+
+function applies(c,num){
+  if(c.freq==="M") return true;
+  if(c.freq==="A") return Number(c.month)===num;
+  return ((num-Number(c.month))%3+3)%3===0;
+}
+function fixFor(num){
+  return S.fixed.filter(c=>applies(c,num)).reduce((s,c)=>s+(Number(c.amount)||0),0);
+}
+function opFor(key){
+  return S.oneoff.filter(o=>o.month===key).reduce((s,o)=>s+(Number(o.amount)||0),0);
+}
+function annual(c){
+  const a=Number(c.amount)||0;
+  return c.freq==="M"?a*12:c.freq==="T"?a*4:a;
+}
+
+function compute(){
+  const obj=P("objectif");
+  const acquis=P("departTotal")+P("dejaEpargne");
+  let cumul=acquis, tension=0, crossed=null;
+  const rows=[], T={rev:0,cred:0,fix:0,op:0,ep:0,rav:0};
+  monthList().forEach(m=>{
+    const rev=get(m.key,"rev",P("revenus"));
+    const cred=get(m.key,"cred",m.idx===0?0:P("credit"));
+    const fx=fixFor(m.num), op=opFor(m.key);
+    const ep=get(m.key,"ep",P("epargneDef"));
+    const rav=rev-cred-fx-op-ep;
+    const before=cumul; cumul+=ep;
+    const cross=obj>0 && before<obj && cumul>=obj;
+    if(cross&&!crossed) crossed=m.label;
+    if(rav<0) tension++;
+    rows.push({m,rev,cred,fx,op,ep,rav,cumul,cross});
+    T.rev+=rev;T.cred+=cred;T.fix+=fx;T.op+=op;T.ep+=ep;T.rav+=rav;
+  });
+  return {rows,acquis,cumul,crossed,tension,T,obj};
+}
+
+function renderParams(){
+  $("params").innerHTML=FIELDS.map(([k,lab,def])=>
+    '<label class="f"><span class="lb">'+lab+'</span>'+
+    '<input type="number" step="1" data-p="'+k+'" value="'+
+    (S.params[k]!==undefined?S.params[k]:def)+'"></label>').join("")+
+    '<label class="f"><span class="lb">Premier mois suivi</span>'+
+    '<input type="month" data-p="start" value="'+(S.start||defaultStart())+'"></label>';
+}
+
+function render(){
+  const r=compute(), obj=r.obj;
+  const configured=obj>0 && (P("departTotal")>0||P("revenus")>0);
+
+  $("h-obj").textContent=obj>0?f0(obj):"à définir";
+  $("h-lede").textContent=configured
+    ? "Tout reste dans ce navigateur : aucune donnée n'est envoyée sur un serveur."
+    : "Renseigne tes paramètres en bas de page pour démarrer. Rien n'est envoyé nulle part.";
+  $("c-stair").classList.toggle("hide",!configured);
+
+  const reste=Math.max(0,obj-r.acquis);
+  $("v1").textContent=f0(r.acquis);
+  $("s1").textContent=obj>0?Math.round(r.acquis/obj*100)+" % de l'objectif":"—";
+  $("v2").textContent=reste>0?f0(reste):"0 €";
+  $("k2").className="kpi "+(reste>0?"bad":"good");
+  $("s2").textContent=reste>0&&r.rows.length
+    ? "soit "+f0(reste/r.rows.length)+" par mois" : "objectif couvert";
+  $("v3").textContent=r.crossed||(reste>0?"hors période":"déjà atteint");
+  $("k3").className="kpi "+(r.crossed||reste===0?"good":"");
+  $("s3").textContent=r.crossed?"au rythme saisi":reste>0?"augmente l'épargne mensuelle":"—";
+  $("v4").textContent=r.tension;
+  $("k4").className="kpi "+(r.tension?"bad":"good");
+  $("s4").textContent=r.tension?"reste à vivre négatif":"tous les mois s'équilibrent";
+
+  /* contrôle de cohérence du solde */
+  const attendu=(P("departTotal")-P("departVersee"))+P("donExclu")+P("dejaEpargne");
+  const ecart=P("soldeCompte")-attendu;
+  const fl=$("flag-coherence");
+  if(configured && P("soldeCompte")>0 && Math.abs(ecart)>1){
+    fl.className="flag warn";
+    fl.textContent="Contrôle : d'après tes paramètres le compte devrait afficher "+
+      f0(attendu)+", or tu as saisi "+f0(P("soldeCompte"))+". Écart de "+f0(Math.abs(ecart))+
+      ". Une des lignes est à revoir.";
+  } else fl.className="flag warn hide";
+
+  /* escalier */
+  if(configured){
+    const steps=[
+      {n:"Versé à l'achat", v:P("departVersee"), key:1},
+      {n:"Reste de l'épargne initiale", v:P("departTotal")-P("departVersee"), key:1},
+      {n:"Épargne ajoutée depuis", v:P("dejaEpargne"), key:1}
+    ].filter(s=>s.v!==0);
+    r.rows.forEach(x=>steps.push({n:x.m.label,v:x.ep,cross:x.cross}));
+    const max=Math.max(obj*1.08,r.cumul*1.02,1);
+    let acc=0;
+    $("stair").innerHTML=steps.map(s=>{
+      acc+=s.v;
+      const cls=["step",s.key?"key":"",acc>=obj?"done":"",s.cross?"cross":""]
+        .filter(Boolean).join(" ");
+      return '<div class="'+cls+'"><div class="nm">'+esc(s.n)+'</div>'+
+        '<div class="track"><div class="bar" style="width:'+
+        Math.min(100,acc/max*100).toFixed(2)+'%"></div></div>'+
+        '<div class="amt">'+f0(acc)+'</div></div>';
+    }).join("")+'<div class="goal" id="goal"><span>'+f0(obj)+'</span></div>';
+    const g=$("goal"), t=$("stair").querySelector(".track");
+    if(g&&t){
+      const a=$("stair").getBoundingClientRect(), b=t.getBoundingClientRect();
+      g.style.left=(b.left-a.left+b.width*obj/max)+"px";
+    }
+  }
+
+  /* tableau mensuel */
+  $("tm-body").innerHTML=r.rows.map(x=>{
+    const k=x.m.key, done=!!(S.months[k]&&S.months[k].done);
+    return '<tr class="'+(done?"paid ":"")+(x.rav<0?"tight":"")+'">'+
+      '<td>'+x.m.label+'</td>'+
+      '<td><input type="number" step="0.01" data-s="m" data-k="'+k+'" data-f="rev" value="'+
+        x.rev+'" aria-label="Revenus '+x.m.label+'"></td>'+
+      '<td><input type="number" step="0.01" data-s="m" data-k="'+k+'" data-f="cred" value="'+
+        x.cred+'" aria-label="Crédit '+x.m.label+'"></td>'+
+      '<td class="dim">'+(x.fx?f0(x.fx):"—")+'</td>'+
+      '<td class="dim">'+(x.op?f0(x.op):"—")+'</td>'+
+      '<td><input type="number" step="10" data-s="m" data-k="'+k+'" data-f="ep" value="'+
+        x.ep+'" aria-label="Épargne '+x.m.label+'"></td>'+
+      '<td class="rav">'+f2(x.rav)+'</td>'+
+      '<td>'+f0(x.cumul)+'</td>'+
+      '<td><input type="checkbox" data-s="m" data-k="'+k+'" data-f="done"'+
+        (done?" checked":"")+' aria-label="Bouclé '+x.m.label+'"></td></tr>';
+  }).join("")||'<tr><td colspan="9" class="empty">Renseigne tes paramètres pour afficher les mois.</td></tr>';
+  $("f-rev").textContent=f0(r.T.rev); $("f-cred").textContent=f0(r.T.cred);
+  $("f-fix").textContent=f0(r.T.fix); $("f-one").textContent=f0(r.T.op);
+  $("f-ep").textContent=f0(r.T.ep);   $("f-rav").textContent=f0(r.T.rav);
+
+  /* charges fixes */
+  $("fx-body").innerHTML=S.fixed.map(c=>
+    '<tr><td><input class="txt" data-s="f" data-k="'+c.id+'" data-f="label" value="'+
+      esc(c.label)+'" aria-label="Libellé"></td>'+
+    '<td><input type="number" step="0.01" data-s="f" data-k="'+c.id+'" data-f="amount" value="'+
+      c.amount+'" aria-label="Montant"></td>'+
+    '<td><select data-s="f" data-k="'+c.id+'" data-f="freq" aria-label="Périodicité">'+
+      Object.keys(FREQ).map(x=>'<option value="'+x+'"'+(c.freq===x?" selected":"")+'>'+
+      FREQ[x]+'</option>').join("")+'</select></td>'+
+    '<td>'+(c.freq==="M"?'<span class="dim">tous</span>':
+      '<select data-s="f" data-k="'+c.id+'" data-f="month" aria-label="Mois">'+
+      MOISNOM.slice(1).map((n,i)=>'<option value="'+(i+1)+'"'+
+      (Number(c.month)===i+1?" selected":"")+'>'+n+'</option>').join("")+'</select>')+'</td>'+
+    '<td class="dim">'+f0(annual(c))+'</td>'+
+    '<td><button class="link" data-s="f" data-k="'+c.id+'" data-f="del">Supprimer</button></td></tr>'
+  ).join("")||'<tr><td colspan="6" class="empty">Aucune charge fixe pour le moment.</td></tr>';
+  const tot=S.fixed.reduce((s,c)=>s+annual(c),0);
+  $("fx-tot").textContent=f0(tot);
+  $("fx-moy").textContent=tot?"Moyenne mensuelle "+f0(tot/12):"";
+
+  /* dépenses ponctuelles */
+  const ml=monthList();
+  $("op-body").innerHTML=S.oneoff.map(o=>
+    '<tr><td><select data-s="o" data-k="'+o.id+'" data-f="month" aria-label="Mois">'+
+      ml.map(m=>'<option value="'+m.key+'"'+(o.month===m.key?" selected":"")+'>'+
+      m.label+'</option>').join("")+'</select></td>'+
+    '<td><input class="txt" data-s="o" data-k="'+o.id+'" data-f="label" value="'+
+      esc(o.label)+'" aria-label="Libellé"></td>'+
+    '<td><input type="number" step="0.01" data-s="o" data-k="'+o.id+'" data-f="amount" value="'+
+      o.amount+'" aria-label="Montant"></td>'+
+    '<td><button class="link" data-s="o" data-k="'+o.id+'" data-f="del">Supprimer</button></td></tr>'
+  ).join("")||'<tr><td colspan="4" class="empty">Aucune dépense ponctuelle.</td></tr>';
+  $("op-tot").textContent=f0(S.oneoff.reduce((s,o)=>s+(Number(o.amount)||0),0));
+}
+
+function refresh(){
+  const a=document.activeElement, d=a&&a.dataset?a.dataset:null;
+  const sel=d&&d.k?'[data-s="'+d.s+'"][data-k="'+d.k+'"][data-f="'+d.f+'"]':
+            (d&&d.p?'[data-p="'+d.p+'"]':null);
+  const pos=(a&&a.type!=="checkbox"&&a.selectionStart!==undefined)?a.selectionStart:null;
+  render();
+  if(sel){ const el=document.querySelector(sel);
+    if(el){ el.focus(); if(pos!==null&&el.setSelectionRange){
+      try{ el.setSelectionRange(pos,pos); }catch(e){} } } }
+}
+
+/* ---------- stockage : window.storage, sinon localStorage, sinon mémoire ---------- */
+const store={
+  async get(){
+    if(window.storage&&window.storage.get){
+      try{ const r=await window.storage.get(KEY); storeMode="app"; return r?r.value:null; }
+      catch(e){}
+    }
+    try{ const v=localStorage.getItem(KEY); storeMode="local"; return v; }
+    catch(e){ storeMode="none"; return null; }
+  },
+  async set(v){
+    if(window.storage&&window.storage.set){
+      try{ await window.storage.set(KEY,v); return "app"; }catch(e){}
+    }
+    try{ localStorage.setItem(KEY,v); return "local"; }catch(e){ return "none"; }
+  }
+};
+let timer=null;
+function save(){
+  clearTimeout(timer);
+  timer=setTimeout(async()=>{
+    const mode=await store.set(JSON.stringify(S));
+    $("status").textContent = mode==="none"
+      ? "Enregistrement impossible dans ce navigateur — note tes chiffres ailleurs."
+      : "Enregistré à "+new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+  },400);
+}
+async function load(){
+  let raw=null;
+  try{ raw=await store.get(); }catch(e){}
+  if(raw){ try{ const p=JSON.parse(raw);
+    S.params=p.params||{}; S.start=p.start||""; S.months=p.months||{};
+    S.fixed=p.fixed||[]; S.oneoff=p.oneoff||[]; }catch(e){} }
+  if(!S.start) S.start=defaultStart();
+  if(S.params.objectif===undefined) S.params.objectif=50000;
+  if(S.params.duree===undefined) S.params.duree=12;
+  $("status").textContent = storeMode==="none"
+    ? "Ce navigateur n'autorise pas l'enregistrement local."
+    : raw ? "Données restaurées." : "Nouveau suivi.";
+  renderParams(); render();
+}
+
+/* ---------- interactions ---------- */
+function onInput(e){
+  const el=e.target, d=el.dataset;
+  if(d&&d.p!==undefined){
+    if(d.p==="start") S.start=el.value;
+    else{ const v=parseFloat(el.value); S.params[d.p]=isNaN(v)?0:v; }
+    refresh(); save(); return;
+  }
+  if(!d||!d.k) return;
+  if(d.s==="m"){
+    const m=mo(d.k);
+    if(d.f==="done") m.done=el.checked;
+    else{ const v=parseFloat(el.value); if(isNaN(v)) delete m[d.f]; else m[d.f]=v; }
+  }else{
+    const list=d.s==="f"?S.fixed:S.oneoff, it=list.find(x=>x.id===d.k);
+    if(!it) return;
+    if(d.f==="amount"){ const v=parseFloat(el.value); it.amount=isNaN(v)?0:v; }
+    else if(d.f==="month"&&d.s==="f") it.month=parseInt(el.value,10);
+    else it[d.f]=el.value;
+  }
+  refresh(); save();
+}
+document.addEventListener("input",onInput);
+document.addEventListener("change",e=>{ if(e.target.tagName==="SELECT") onInput(e); });
+
+document.addEventListener("click",e=>{
+  const d=e.target.dataset;
+  if(!d||d.f!=="del") return;
+  if(d.s==="f") S.fixed=S.fixed.filter(x=>x.id!==d.k);
+  else S.oneoff=S.oneoff.filter(x=>x.id!==d.k);
+  render(); save();
+});
+
+$("add-fx").addEventListener("click",()=>{
+  S.fixed.push({id:uid(),label:"Nouvelle charge",amount:0,freq:"M",month:1});
+  render(); save();
+  const l=$("fx-body").querySelectorAll("input.txt"); if(l.length) l[l.length-1].select();
+});
+$("add-op").addEventListener("click",()=>{
+  const ml=monthList();
+  S.oneoff.push({id:uid(),month:ml.length?ml[0].key:"",label:"Nouvelle dépense",amount:0});
+  render(); save();
+  const l=$("op-body").querySelectorAll("input.txt"); if(l.length) l[l.length-1].select();
+});
+$("apply-bulk").addEventListener("click",()=>{
+  const v=parseFloat($("bulk").value);
+  if(isNaN(v)) return;
+  monthList().forEach(m=>{ mo(m.key).ep=v; });
+  render(); save();
+});
+$("save-params").addEventListener("click",()=>{
+  render(); save();
+  window.scrollTo({top:0,behavior:"smooth"});
+});
+$("reset").addEventListener("click",()=>{
+  if(!confirm("Effacer tous les paramètres et toutes les saisies ?")) return;
+  S={params:{objectif:50000,duree:12},start:defaultStart(),months:{},fixed:[],oneoff:[]};
+  renderParams(); render(); save();
+});
+window.addEventListener("resize",render);
+
+load();
+})();
+</script>
+</body>
+</html>
