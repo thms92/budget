@@ -102,6 +102,23 @@
   button.link:hover{color:var(--danger)}
   .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:20px}
 
+  /* onglets */
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:28px;
+    overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tab{border:0;background:none;font-family:var(--font);font-size:15px;font-weight:500;
+    color:var(--muted);padding:12px 16px;border-radius:0;border-bottom:2px solid transparent;
+    margin-bottom:-1px;white-space:nowrap;cursor:pointer}
+  .tab:hover{color:var(--ink);border-color:transparent}
+  .tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+  .tab:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:4px}
+  .tab .pip{display:inline-block;min-width:18px;padding:0 5px;margin-left:7px;
+    font-size:12px;font-weight:600;line-height:18px;border-radius:9px;
+    background:var(--soft);color:var(--muted);vertical-align:1px}
+  .tab[aria-selected="true"] .pip{background:var(--accent-soft);color:var(--accent)}
+  .tab .pip.warn{background:var(--danger-soft);color:var(--danger)}
+  .pane{display:none}
+  .pane.on{display:block}
+
   .flag{border-radius:8px;padding:14px 16px;font-size:14px;margin-bottom:20px}
   .flag.warn{background:var(--danger-soft);color:var(--danger)}
   .flag.ok{background:var(--accent-soft);color:var(--accent)}
@@ -145,13 +162,14 @@
       <div class="val" id="v4">—</div><div class="sub" id="s4">—</div></div>
   </div>
 
-  <section class="card" id="c-stair">
-    <h2>L'escalier vers l'objectif</h2>
-    <p class="desc">Chaque contribution s'empile sur la précédente. Le trait vertical marque
-      l'objectif ; les marches qui le franchissent passent au vert.</p>
-    <div class="stair" id="stair"></div>
-  </section>
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button class="tab" role="tab" id="tab-suivi"   data-pane="p-suivi"   aria-selected="true"  aria-controls="p-suivi">Suivi mensuel</button>
+    <button class="tab" role="tab" id="tab-epargne" data-pane="p-epargne" aria-selected="false" aria-controls="p-epargne">Objectif d'épargne</button>
+    <button class="tab" role="tab" id="tab-charges" data-pane="p-charges" aria-selected="false" aria-controls="p-charges">Charges &amp; dépenses</button>
+    <button class="tab" role="tab" id="tab-params"  data-pane="p-params"  aria-selected="false" aria-controls="p-params">Paramètres</button>
+  </nav>
 
+  <div class="pane on" id="p-suivi" role="tabpanel" aria-labelledby="tab-suivi">
   <section class="card">
     <h2>Suivi mois par mois</h2>
     <p class="desc">Saisis ce que tu encaisses et ce que tu mets de côté. Le reste à vivre est
@@ -174,7 +192,18 @@
       <button id="apply-bulk">Appliquer</button>
     </div>
   </section>
+  </div>
 
+  <div class="pane" id="p-epargne" role="tabpanel" aria-labelledby="tab-epargne" hidden>
+  <section class="card" id="c-stair">
+    <h2>L'escalier vers l'objectif</h2>
+    <p class="desc">Chaque contribution s'empile sur la précédente. Le trait vertical marque
+      l'objectif ; les marches qui le franchissent passent au vert.</p>
+    <div class="stair" id="stair"></div>
+  </section>
+  </div>
+
+  <div class="pane" id="p-charges" role="tabpanel" aria-labelledby="tab-charges" hidden>
   <section class="card">
     <h2>Charges fixes</h2>
     <p class="desc">La périodicité place automatiquement la dépense sur les bons mois — utile
@@ -200,7 +229,9 @@
     </table></div>
     <div class="row"><button id="add-op">Ajouter une dépense</button></div>
   </section>
+  </div>
 
+  <div class="pane" id="p-params" role="tabpanel" aria-labelledby="tab-params" hidden>
   <section class="card" id="c-params">
     <h2>Mes paramètres</h2>
     <p class="desc">Ces montants ne sont enregistrés que dans ce navigateur. Ils ne partent
@@ -211,6 +242,7 @@
       <button class="link" id="reset">Tout effacer</button>
     </div>
   </section>
+  </div>
 
   <footer>
     <span id="status">Chargement…</span>
@@ -375,8 +407,14 @@ function render(){
     }).join("")+'<div class="goal" id="goal"><span>'+f0(obj)+'</span></div>';
     const g=$("goal"), t=$("stair").querySelector(".track");
     if(g&&t){
-      const a=$("stair").getBoundingClientRect(), b=t.getBoundingClientRect();
-      g.style.left=(b.left-a.left+b.width*obj/max)+"px";
+      const b=t.getBoundingClientRect();
+      if(b.width>0){                       // panneau visible : mesure fiable
+        const a=$("stair").getBoundingClientRect();
+        g.style.left=(b.left-a.left+b.width*obj/max)+"px";
+        g.style.display="";
+      } else {                              // panneau caché : repère masqué le temps de l'ouverture
+        g.style.display="none";
+      }
     }
   }
 
@@ -435,6 +473,8 @@ function render(){
     '<td><button class="link" data-s="o" data-k="'+o.id+'" data-f="del">Supprimer</button></td></tr>'
   ).join("")||'<tr><td colspan="4" class="empty">Aucune dépense ponctuelle.</td></tr>';
   $("op-tot").textContent=f0(S.oneoff.reduce((s,o)=>s+(Number(o.amount)||0),0));
+
+  updatePips(r);
 }
 
 function refresh(){
@@ -549,7 +589,41 @@ $("reset").addEventListener("click",()=>{
   S={params:{objectif:50000,duree:12},start:defaultStart(),months:{},fixed:[],oneoff:[]};
   renderParams(); render(); save();
 });
-window.addEventListener("resize",render);
+window.addEventListener("resize",()=>{ if(activePane==="p-epargne") render(); });
+
+/* ---------- onglets ---------- */
+let activePane="p-suivi";
+const tabs=[].slice.call(document.querySelectorAll(".tab"));
+function selectTab(id){
+  tabs.forEach(t=>{
+    const on=t.dataset.pane===id;
+    t.setAttribute("aria-selected",on?"true":"false");
+    const pane=document.getElementById(t.dataset.pane);
+    if(pane){ pane.classList.toggle("on",on); pane.hidden=!on; }
+  });
+  activePane=id;
+  if(id==="p-epargne") requestAnimationFrame(render); // repositionne le repère 50 000 €
+}
+tabs.forEach((t,i)=>{
+  t.addEventListener("click",()=>selectTab(t.dataset.pane));
+  t.addEventListener("keydown",e=>{
+    if(e.key!=="ArrowRight"&&e.key!=="ArrowLeft") return;
+    e.preventDefault();
+    const d=e.key==="ArrowRight"?1:-1;
+    const n=(i+d+tabs.length)%tabs.length;
+    tabs[n].focus(); selectTab(tabs[n].dataset.pane);
+  });
+});
+
+function updatePips(r){
+  const tension=r.tension;
+  const tSuivi=document.getElementById("tab-suivi");
+  let pip=tSuivi.querySelector(".pip");
+  if(tension>0){
+    if(!pip){ pip=document.createElement("span"); pip.className="pip warn"; tSuivi.appendChild(pip); }
+    pip.className="pip warn"; pip.textContent=tension;
+  } else if(pip){ pip.remove(); }
+}
 
 load();
 })();
